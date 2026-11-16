@@ -124,7 +124,7 @@ function updTiles(r){const on=r>2.6;if(!on&&tl.size===0)return;
   T.tiles.forEach(t=>{const key=t[0]+'_'+t[1],x0=t[0]*tsz,y0=t[1]*tsz;
     const vis=on&&x0<vx1+m&&x0+tsz>vx0-m&&y0<vy1+m&&y0+tsz>vy0-m;let im=tl.get(key);
     if(vis&&!im){im=document.createElement('img');im.style.left=x0+'px';im.style.top=y0+'px';im.style.width=Math.min(T.CS,T.W-t[0]*T.CS)/T.S*U+'px';im.style.height=Math.min(T.CS,T.H-t[1]*T.CS)/T.S*U+'px';
-      im.onload=()=>{im.style.opacity=1};im.src='t/'+key+'.webp';tcont.appendChild(im);tl.set(key,im)}
+      im.onload=()=>{im.style.opacity=1};im.src=key+'.webp';tcont.appendChild(im);tl.set(key,im)}
     else if(!vis&&im&&(tl.size>48||!on)){im.remove();tl.delete(key)}})}
 function clampT(){const vw=innerWidth,vh=innerHeight-TOP(),w=SW*k,h=SH*k;
   tx=w<vw?(vw-w)/2:Math.min(60,Math.max(vw-w-60,tx));ty=h<vh?TOP()+(vh-h)/2:Math.min(TOP()+60,Math.max(TOP()+vh-h-60,ty))}
