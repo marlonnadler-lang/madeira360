@@ -23,6 +23,7 @@ svg .vis{pointer-events:none}
 #pts.nl .lbl{display:none}
 .num{width:26px;height:26px;border-radius:50%;background:var(--c);color:#fff;font:700 14px/22px inherit;text-align:center;border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.6);cursor:pointer}
 .num.x{border-radius:7px;font-size:13px}
+.num.prl{width:auto;height:auto;border-radius:11px;padding:2px 7px;font:700 11.5px/1.25 -apple-system,Segoe UI,Roboto,Arial,sans-serif;border-width:1.5px;white-space:nowrap}
 .num.on,.num:hover{box-shadow:0 0 0 4px #fff,0 0 16px 7px var(--c)}
 .lbl{position:absolute;top:50%;transform:translateY(-50%);white-space:nowrap;color:#fff;font:700 11.5px/1.1 inherit;text-shadow:0 0 3px #101a24,0 0 3px #101a24,0 0 5px #101a24,0 1px 2px #101a24;pointer-events:none}
 .lbl.r{left:21px}.lbl.l{right:21px}.lbl.u{left:50%;transform:translate(-50%,-30px)}.lbl.d{left:50%;transform:translate(-50%,16px)}
@@ -33,6 +34,9 @@ svg .vis{pointer-events:none}
 .chip:hover{background:#e3e9ef}.chip.sel{border-color:var(--c);background:#fff}
 #ttl{font-size:13px;color:#33414d;margin:5px 4px 1px;min-height:17px}
 #ttl b{color:var(--c)}
+#ttl a{color:#1b5fb8}
+svg .prp{pointer-events:none}
+svg .prh{stroke:transparent;pointer-events:stroke;cursor:pointer}
 #info{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);width:min(440px,calc(100vw - 20px));background:#fff;border-radius:14px;padding:14px 16px 14px;box-shadow:0 6px 24px rgba(0,0,0,.45);z-index:25;display:none;border-top:6px solid var(--c)}
 #info h2{margin:0 24px 2px 0;font-size:16px}
 #info .t{color:var(--c);font-weight:700;font-size:13px;margin-bottom:6px}
@@ -58,7 +62,7 @@ svg .vis{pointer-events:none}
 <div id="bar"><div id="chips"></div><div id="ttl"></div></div>
 <div id="info"><button class="x" onclick="closeInfo()">×</button><div id="ib"></div></div>
 <div id="ctl"><button id="zi">+</button><button id="zo">−</button><button id="zr" style="font-size:17px">⌂</button></div>
-<div id="hint">Tag oben antippen: dann erscheinen die Stationen. Zahl antippen für Infos.</div>
+<div id="hint">Oben einen Tag antippen: dann erscheinen die Stationen. „Offizielle Wanderwege“ zeigt alle PR-Wege mit Status.</div>
 <div id="attr">Satellit: Esri World Imagery</div>
 <script>
 Promise.all([fetch('data.json').then(r=>r.json()),fetch('stops.json').then(r=>r.json())]).then(a=>init(a[0],a[1]));
@@ -79,7 +83,13 @@ D.routes.slice().sort((a,b)=>a.z-b.z).forEach(r=>{
   if(!r.halo){const h=document.createElementNS(NS,'path');h.setAttribute('d',p.getAttribute('d'));h.setAttribute('class','hit');h.dataset.d=r.d;h.dataset.hit=1;
     h.onmouseenter=()=>{hot=r.d;apply()};h.onmouseleave=()=>{hot=null;apply()};h.onclick=e=>{e.stopPropagation();selDay(sel==r.d?null:r.d)};svg.appendChild(h);allP.push(h)}
 });
-function scalePaths(){const g=Math.min(2.4,Math.pow(k/kmin,0.35));
+const prP=[],PRCOL={o:'#1fa64a',c:'#e0312f'};
+Object.entries(D.pr||{}).forEach(([ref,v])=>{const dd=v.w.map(w=>'M'+w.map(q=>X(q[0]).toFixed(1)+' '+Y(q[1]).toFixed(1)).join('L')).join('');
+  const p=document.createElementNS(NS,'path');p.setAttribute('d',dd);p.setAttribute('class','prp gone');p.style.stroke=v.c?PRCOL.c:PRCOL.o;p.dataset.pr=1;
+  const h=document.createElementNS(NS,'path');h.setAttribute('d',dd);h.setAttribute('class','prh gone');h.dataset.prh=1;h.onclick=e=>{e.stopPropagation();openPr(ref,v)};
+  svg.appendChild(p);svg.appendChild(h);prP.push(p);prP.push(h)});
+function scalePaths(){
+  const g0=Math.min(2.4,Math.pow(k/kmin,0.35));prP.forEach(p=>{p.style.strokeWidth=p.dataset.prh?(16/k)+'px':(3.2*g0/k)+'px'});const g=Math.min(2.4,Math.pow(k/kmin,0.35));
   allP.forEach(p=>{if(p.dataset.hit){p.style.strokeWidth=(18/k)+'px';return}
     p.style.strokeWidth=(p.dataset.w*g*(+p.dataset.d===sel?1.7:1)/k)+'px';
     if(p.dataset.dash)p.style.strokeDasharray=p.dataset.dash.split(',').map(v=>v*g/k).join(' ')})}
@@ -96,6 +106,14 @@ function drawPts(d){pts.innerHTML='';cur=[];if(!d)return;
     pts.appendChild(el);cur.push(el)};
   S.days[d].forEach(s=>mk(String(s.n),s,false));
   S.extras.filter(e=>e.day==d).forEach(e=>mk('X',e,true));}
+function mid(v){let b=v.w[0];v.w.forEach(w=>{if(w.length>b.length)b=w});return b[Math.floor(b.length/2)]}
+function drawPr(){pts.innerHTML='';cur=[];
+  Object.entries(D.pr||{}).forEach(([ref,v])=>{const m=mid(v),el=document.createElement('div');el.className='pt';el.style.left=X(m[0])+'px';el.style.top=Y(m[1])+'px';el.style.setProperty('--c',v.c?PRCOL.c:PRCOL.o);
+    el.innerHTML='<div class="in"><div class="num prl">'+ref+(v.c?' ✕':'')+'</div></div>';
+    const nm=el.querySelector('.num');nm.onclick=e=>{e.stopPropagation();openPr(ref,v,nm)};nm.onpointerdown=e=>e.stopPropagation();pts.appendChild(el);cur.push(el)})}
+function openPr(ref,v,nm){const col=v.c?PRCOL.c:PRCOL.o;$('info').style.setProperty('--c',col);
+  $('ib').innerHTML='<h2>'+ref+' · '+v.n+'</h2><div class="t">'+(v.c?'Aktuell gesperrt':'Aktuell offen')+' · Stand '+D.prstand+' (IFCN)</div><p>'+(v.c?'Dieser Weg ist laut IFCN derzeit zu und gehört nicht in unseren Plan. Nach Unwettern kann sich das schnell ändern.':'Laut IFCN derzeit offen. Nach Regen oder Sturm wird oft kurzfristig gesperrt, deshalb am Morgen der Tour den Status prüfen.')+'</p><div class="lk"><a href="https://ifcn.madeira.gov.pt/" target="_blank" rel="noopener">Status beim IFCN</a><a href="https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(ref+' '+v.n+' Madeira')+'" target="_blank" rel="noopener">In Google Maps</a></div>';
+  $('info').style.display='block';$('hint').style.opacity=0;cur.forEach(e=>e.querySelector('.num').classList.remove('on'));if(nm)nm.classList.add('on')}
 function openInfo(d,txt,s,nm){$('info').style.setProperty('--c',COL[d]);const isx=txt==='X';
   $('ib').innerHTML='<h2>'+(isx?'Zusatzaktivität: ':txt+' · ')+s.name+'</h2><div class="t">'+(isx?'Tag '+d+', optional und extra buchbar':'Tag '+d+(s.time?' · '+s.time:''))+'</div><p>'+(s.text||'')+'</p><div class="lk">'+(s.links||[]).map(l=>'<a href="'+l[1]+'" target="_blank" rel="noopener">'+l[0]+'</a>').join('')+'</div>';
   $('info').style.display='block';$('hint').style.opacity=0;
@@ -105,14 +123,21 @@ function openInfo(d,txt,s,nm){$('info').style.setProperty('--c',COL[d]);const is
 function closeInfo(){$('info').style.display='none';cur.forEach(e=>e.querySelector('.num').classList.remove('on'))}
 window.closeInfo=closeInfo;
 const chips=$('chips');
+function mkChip(key,label,col,fn){const c=document.createElement('div');c.className='chip';c.style.setProperty('--c',col);c.dataset.k=key;c.innerHTML='<i></i>'+label;c.onclick=fn;chips.appendChild(c);return c}
+mkChip('all','Gesamt','#16212b',()=>selDay(null));
 for(let d=1;d<=8;d++){const c=document.createElement('div');c.className='chip';c.style.setProperty('--c',COL[d]);c.dataset.d=d;c.innerHTML='<i></i>Tag '+d;
-  c.onclick=()=>selDay(sel==d?null:d);c.onmouseenter=()=>{hot=d;apply()};c.onmouseleave=()=>{hot=null;apply()};chips.appendChild(c)}
+  c.onclick=()=>selDay(sel==d?null:d);c.onmouseenter=()=>{hot=d;apply()};c.onmouseleave=()=>{hot=null;apply()};c.dataset.k=d;chips.appendChild(c)}
+mkChip('W','Offizielle Wanderwege','#1e9e4a',()=>selDay(sel==='W'?null:'W'));
 function apply(){const d=hot||sel,gn=sel&&!hot;
   allP.forEach(p=>{const o=!!d&&+p.dataset.d!==+d;p.classList.toggle('gone',!!gn&&o);p.classList.toggle('dim',!gn&&o)});
-  document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('sel',+c.dataset.d===sel));
+  document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('sel',c.dataset.k===(sel===null?'all':String(sel))));
+  prP.forEach(p=>p.classList.toggle('gone',sel!=='W'));
   scalePaths()}
-function selDay(d){sel=d;closeInfo();apply();drawPts(d);
-  const t=$('ttl');if(!d){t.innerHTML='';render();return}
+function selDay(d){sel=d;closeInfo();apply();drawPts(d===null||d==='W'?null:d);
+  const t=$('ttl');
+  if(d==='W'){t.style.setProperty('--c','#1e9e4a');t.innerHTML='<b>Offizielle Wanderwege (PR)</b> · <span style="color:#1fa64a;font-weight:700">grün = offen</span>, <span style="color:#e0312f;font-weight:700">rot = gesperrt</span> · Stand '+D.prstand+' laut IFCN. Der Status ändert sich bei Wetter schnell: <a href="https://ifcn.madeira.gov.pt/" target="_blank" rel="noopener">vor der Tour hier prüfen</a>';
+    $('hint').style.opacity=0;drawPr();animTo(kmin,SW/2,SH/2);render();return}
+  if(!d){t.innerHTML='<span style="color:#6a7580">Alle Tage auf einen Blick. Oben einen Tag antippen für die Stationen.</span>';render();return}
   t.style.setProperty('--c',COL[d]);t.innerHTML='<b>Tag '+d+' · '+D.days[d].d+'</b> · '+D.days[d].t+' <span style="color:#6a7580">· Zahlen = Stationen in Reihenfolge, X = Zusatzaktivität</span>';
   $('hint').style.opacity=0;fitDay(d);render()}
 function fitDay(d){const l=S.days[d].concat(S.extras.filter(e=>e.day==d));let a=1e9,b=-1e9,c=1e9,e=-1e9;
@@ -157,9 +182,9 @@ $('zr').onclick=()=>{selDay(null);animTo(kmin,SW/2,SH/2)};
 addEventListener('keydown',e=>{if(e.key==='Escape'){closeInfo();selDay(null)}});
 addEventListener('resize',fit);
 setTimeout(()=>{$('hint').style.opacity=0},12000);
-fit();apply();
+fit();apply();$('ttl').innerHTML='<span style="color:#6a7580">Alle Tage auf einen Blick. Oben einen Tag antippen für die Stationen.</span>';
 const H=new URLSearchParams(location.hash.slice(1));
-if(H.get('d'))selDay(+H.get('d'));
+if(H.get('d'))selDay(H.get('d')==='W'?'W':+H.get('d'));
 if(H.get('z')){const z=+H.get('z'),hx=+H.get('x')||D.hotel[0],hy=+H.get('y')||D.hotel[1];k=z*kmin;tx=innerWidth/2-X(hx)*k;ty=TOP()+(innerHeight-TOP())/2-Y(hy)*k;render()}
 if(H.get('i')){const d=+H.get('d'),n=+H.get('i');openInfo(d,String(n),S.days[d][n-1],null)}
 }
