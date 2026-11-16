@@ -36,6 +36,11 @@ svg .vis{pointer-events:none}
 #ttl b{color:var(--c)}
 #ttl a{color:#1b5fb8}
 svg .prp{pointer-events:none}
+.num a.gp{color:#fff;text-decoration:underline;margin-left:4px;font-weight:700}
+.num.turn{width:auto;height:auto;border-radius:11px;padding:3px 9px;font:700 12px/1.25 -apple-system,Segoe UI,Roboto,Arial,sans-serif;white-space:nowrap}
+#me{width:18px;height:18px;border-radius:50%;background:#1a73e8;border:3px solid #fff;box-shadow:0 0 0 2px rgba(26,115,232,.45),0 1px 6px rgba(0,0,0,.6)}
+#acc{position:absolute;border-radius:50%;background:rgba(26,115,232,.18);border:1px solid rgba(26,115,232,.5);transform:translate(-50%,-50%);pointer-events:none}
+#gps.on{background:#1a73e8;color:#fff}
 svg .prh{stroke:transparent;pointer-events:stroke;cursor:pointer}
 #info{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);width:min(440px,calc(100vw - 20px));background:#fff;border-radius:14px;padding:14px 16px 14px;box-shadow:0 6px 24px rgba(0,0,0,.45);z-index:25;display:none;border-top:6px solid var(--c)}
 #info h2{margin:0 24px 2px 0;font-size:16px}
@@ -61,9 +66,9 @@ svg .prh{stroke:transparent;pointer-events:stroke;cursor:pointer}
 </div></div>
 <div id="bar"><div id="chips"></div><div id="ttl"></div></div>
 <div id="info"><button class="x" onclick="closeInfo()">×</button><div id="ib"></div></div>
-<div id="ctl"><button id="zi">+</button><button id="zo">−</button><button id="zr" style="font-size:17px">⌂</button></div>
+<div id="ctl"><button id="zi">+</button><button id="zo">−</button><button id="gps" title="Mein Standort" style="font-size:20px">◎</button><button id="zr" style="font-size:17px">⌂</button></div>
 <div id="hint">Oben einen Tag antippen: dann erscheinen die Stationen. „Offizielle Wanderwege“ zeigt alle PR-Wege mit Status.</div>
-<div id="attr">Satellit: Esri World Imagery</div>
+<div id="attr">Satellit: Esri World Imagery · Wanderwege: © OpenStreetMap-Mitwirkende</div>
 <script>
 Promise.all([fetch('data.json').then(r=>r.json()),fetch('stops.json').then(r=>r.json())]).then(a=>init(a[0],a[1]));
 function init(D,S){
@@ -88,6 +93,7 @@ Object.entries(D.pr||{}).forEach(([ref,v])=>{const dd=v.w.map(w=>'M'+w.map(q=>X(
   const p=document.createElementNS(NS,'path');p.setAttribute('d',dd);p.setAttribute('class','prp gone');p.style.stroke=v.c?PRCOL.c:PRCOL.o;p.dataset.pr=1;
   const h=document.createElementNS(NS,'path');h.setAttribute('d',dd);h.setAttribute('class','prh gone');h.dataset.prh=1;h.onclick=e=>{e.stopPropagation();openPr(ref,v)};
   svg.appendChild(p);svg.appendChild(h);prP.push(p);prP.push(h)});
+(D.closedseg||[]).forEach(w=>{const p=document.createElementNS(NS,'path');p.setAttribute('d','M'+w.map(q=>X(q[0]).toFixed(1)+' '+Y(q[1]).toFixed(1)).join('L'));p.setAttribute('class','vis');p.style.stroke='#e0312f';p.style.opacity=1;p.dataset.w=3.4;p.dataset.d=5;p.dataset.dash='9,7';svg.appendChild(p);allP.push(p)});
 function scalePaths(){
   const g0=Math.min(2.4,Math.pow(k/kmin,0.35));prP.forEach(p=>{p.style.strokeWidth=p.dataset.prh?(16/k)+'px':(3.2*g0/k)+'px'});const g=Math.min(2.4,Math.pow(k/kmin,0.35));
   allP.forEach(p=>{if(p.dataset.hit){p.style.strokeWidth=(18/k)+'px';return}
@@ -105,14 +111,19 @@ function drawPts(d){pts.innerHTML='';cur=[];if(!d)return;
     nm.onpointerdown=e=>e.stopPropagation();
     pts.appendChild(el);cur.push(el)};
   S.days[d].forEach(s=>mk(String(s.n),s,false));
-  S.extras.filter(e=>e.day==d).forEach(e=>mk('X',e,true));}
+  S.extras.filter(e=>e.day==d).forEach(e=>mk('X',e,true));
+  if(d==5&&D.turn){const el=document.createElement('div');el.className='pt';el.style.left=X(D.turn.xy[0])+'px';el.style.top=Y(D.turn.xy[1])+'px';el.style.setProperty('--c','#e0312f');
+    el.innerHTML='<div class="in"><div class="num turn">⛔ Hier umkehren</div></div>';const nm=el.querySelector('.num');nm.onclick=e=>{e.stopPropagation();openTurn(nm)};nm.onpointerdown=e=>e.stopPropagation();pts.appendChild(el);cur.push(el)}}
+function openTurn(nm){$('info').style.setProperty('--c','#e0312f');
+  $('ib').innerHTML='<h2>Umkehrpunkt am Wasserfall Caldeirão Verde</h2><div class="t">Tag 5 · ab hier ist der Weg gesperrt</div><p>Hinter dem Wasserfall ist die PR9 wegen Steinschlag gesperrt (rot gestrichelt). Wir kehren hier um. Mit dem Standort-Knopf unten rechts (◎) siehst du live, wo du bist.</p><div class="lk"><a href="gpx_PR9.gpx" download>GPX bis zum Wasserfall</a><a href="https://www.google.com/maps/search/?api=1&query='+D.turn.lat+','+D.turn.lon+'" target="_blank" rel="noopener">In Google Maps</a></div>';
+  $('info').style.display='block';$('hint').style.opacity=0;cur.forEach(e=>e.querySelector('.num').classList.remove('on'));if(nm)nm.classList.add('on')}
 function mid(v){let b=v.w[0];v.w.forEach(w=>{if(w.length>b.length)b=w});return b[Math.floor(b.length/2)]}
 function drawPr(){pts.innerHTML='';cur=[];
   Object.entries(D.pr||{}).forEach(([ref,v])=>{const m=mid(v),el=document.createElement('div');el.className='pt';el.style.left=X(m[0])+'px';el.style.top=Y(m[1])+'px';el.style.setProperty('--c',v.c?PRCOL.c:PRCOL.o);
-    el.innerHTML='<div class="in"><div class="num prl">'+ref+(v.c?' ✕':'')+'</div></div>';
-    const nm=el.querySelector('.num');nm.onclick=e=>{e.stopPropagation();openPr(ref,v,nm)};nm.onpointerdown=e=>e.stopPropagation();pts.appendChild(el);cur.push(el)})}
+    el.innerHTML='<div class="in"><div class="num prl">'+ref+(v.c?' ✕':'')+' <a class="gp" href="gpx_'+ref+'.gpx" download>GPX</a></div></div>';
+    const nm=el.querySelector('.num');el.querySelector('a').onclick=e=>e.stopPropagation();el.querySelector('a').onpointerdown=e=>e.stopPropagation();nm.onclick=e=>{e.stopPropagation();openPr(ref,v,nm)};nm.onpointerdown=e=>e.stopPropagation();pts.appendChild(el);cur.push(el)})}
 function openPr(ref,v,nm){const col=v.c?PRCOL.c:PRCOL.o;$('info').style.setProperty('--c',col);
-  $('ib').innerHTML='<h2>'+ref+' · '+v.n+'</h2><div class="t">'+(v.c?'Aktuell gesperrt':'Aktuell offen')+' · Stand '+D.prstand+' (IFCN)</div><p>'+(v.c?'Dieser Weg ist laut IFCN derzeit zu und gehört nicht in unseren Plan. Nach Unwettern kann sich das schnell ändern.':'Laut IFCN derzeit offen. Nach Regen oder Sturm wird oft kurzfristig gesperrt, deshalb am Morgen der Tour den Status prüfen.')+'</p><div class="lk"><a href="https://ifcn.madeira.gov.pt/" target="_blank" rel="noopener">Status beim IFCN</a><a href="https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(ref+' '+v.n+' Madeira')+'" target="_blank" rel="noopener">In Google Maps</a></div>';
+  $('ib').innerHTML='<h2>'+ref+' · '+v.n+'</h2><div class="t">'+(v.c?'Aktuell gesperrt':'Aktuell offen')+' · Stand '+D.prstand+' (IFCN)</div><p>'+(ref==='PR9'?'Die GPX endet am Wasserfall Caldeirão Verde, denn dahinter ist der Weg gesperrt. ':'')+(v.c?'Dieser Weg ist laut IFCN derzeit zu und gehört nicht in unseren Plan. Nach Unwettern kann sich das schnell ändern.':'Laut IFCN derzeit offen. Nach Regen oder Sturm wird oft kurzfristig gesperrt, deshalb am Morgen der Tour den Status prüfen.')+'</p><div class="lk"><a href="gpx_'+ref+'.gpx" download>GPX herunterladen</a><a href="https://ifcn.madeira.gov.pt/" target="_blank" rel="noopener">Status beim IFCN</a><a href="https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(ref+' '+v.n+' Madeira')+'" target="_blank" rel="noopener">In Google Maps</a></div>';
   $('info').style.display='block';$('hint').style.opacity=0;cur.forEach(e=>e.querySelector('.num').classList.remove('on'));if(nm)nm.classList.add('on')}
 function openInfo(d,txt,s,nm){$('info').style.setProperty('--c',COL[d]);const isx=txt==='X';
   $('ib').innerHTML='<h2>'+(isx?'Zusatzaktivität: ':txt+' · ')+s.name+'</h2><div class="t">'+(isx?'Tag '+d+', optional und extra buchbar':'Tag '+d+(s.time?' · '+s.time:''))+'</div><p>'+(s.text||'')+'</p><div class="lk">'+(s.links||[]).map(l=>'<a href="'+l[1]+'" target="_blank" rel="noopener">'+l[0]+'</a>').join('')+'</div>';
@@ -179,13 +190,26 @@ view.addEventListener('pointerup',up);view.addEventListener('pointercancel',up);
 view.addEventListener('click',e=>{if(moved<6&&$('info').style.display==='block')closeInfo()});
 $('zi').onclick=()=>zoomAt(innerWidth/2,innerHeight/2,k*1.6);$('zo').onclick=()=>zoomAt(innerWidth/2,innerHeight/2,k/1.6);
 $('zr').onclick=()=>{selDay(null);animTo(kmin,SW/2,SH/2)};
+let gw=null,me=null,acc=null,gfirst=true;
+const PJ=D.proj,GX=(lon,lat)=>[X(PJ.x0+(lon-PJ.lon0)*PJ.kx),Y(PJ.y0+(lat-PJ.lat0)*PJ.ky)];
+function msg(t){const h=$('hint');h.textContent=t;h.style.opacity=1;clearTimeout(msg.t);msg.t=setTimeout(()=>{h.style.opacity=0},6000)}
+function gpsOff(){if(gw!==null)navigator.geolocation.clearWatch(gw);gw=null;if(me){me.remove();me=null}if(acc){acc.remove();acc=null}$('gps').classList.remove('on')}
+$('gps').onclick=()=>{if(gw!==null){gpsOff();return}
+  if(!navigator.geolocation){msg('Dein Browser unterstützt keine Standortfreigabe.');return}
+  gfirst=true;$('gps').classList.add('on');msg('Standort wird gesucht … bitte Freigabe erlauben.');
+  gw=navigator.geolocation.watchPosition(p=>{const c=p.coords,q=GX(c.longitude,c.latitude);
+    if(q[0]<0||q[1]<0||q[0]>SW||q[1]>SH){msg('Dein Standort liegt nicht auf der Karte von Madeira.');gpsOff();return}
+    if(!me){me=document.createElement('div');me.className='pt';me.innerHTML='<div class="in" style="z-index:5"><div id="me"></div></div>';stage.appendChild(me);acc=document.createElement('div');acc.id='acc';stage.appendChild(acc)}
+    me.style.left=q[0]+'px';me.style.top=q[1]+'px';const r=Math.max(6,c.accuracy/52.8);acc.style.left=q[0]+'px';acc.style.top=q[1]+'px';acc.style.width=acc.style.height=(2*r)+'px';
+    if(gfirst){gfirst=false;animTo(Math.max(k,kmin*8),q[0],q[1]);msg('Blauer Punkt = du. Genauigkeit ca. '+Math.round(c.accuracy)+' m.')}
+    render()},e=>{msg(e.code===1?'Standort nicht erlaubt. Bitte in den Browser-Einstellungen freigeben.':'Standort gerade nicht verfügbar.');gpsOff()},{enableHighAccuracy:true,maximumAge:5000,timeout:20000})};
 addEventListener('keydown',e=>{if(e.key==='Escape'){closeInfo();selDay(null)}});
 addEventListener('resize',fit);
 setTimeout(()=>{$('hint').style.opacity=0},12000);
 fit();apply();$('ttl').innerHTML='<span style="color:#6a7580">Alle Tage auf einen Blick. Oben einen Tag antippen für die Stationen.</span>';
 const H=new URLSearchParams(location.hash.slice(1));
 if(H.get('d'))selDay(H.get('d')==='W'?'W':+H.get('d'));
-if(H.get('z')){const z=+H.get('z'),hx=+H.get('x')||D.hotel[0],hy=+H.get('y')||D.hotel[1];k=z*kmin;tx=innerWidth/2-X(hx)*k;ty=TOP()+(innerHeight-TOP())/2-Y(hy)*k;render()}
+if(H.get('z'))setTimeout(()=>{const z=+H.get('z'),hx=+H.get('x')||D.hotel[0],hy=+H.get('y')||D.hotel[1];k=z*kmin;tx=innerWidth/2-X(hx)*k;ty=TOP()+(innerHeight-TOP())/2-Y(hy)*k;render()},H.get('d')?900:0);
 if(H.get('i')){const d=+H.get('d'),n=+H.get('i');openInfo(d,String(n),S.days[d][n-1],null)}
 }
 </script></body></html>
